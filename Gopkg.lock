@@ -898,6 +898,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/emicklei/go-restful",
     "github.com/emicklei/go-restful-swagger12",
     "github.com/golang/glog",
     "github.com/googleapis/gnostic/OpenAPIv2",
@@ -910,12 +911,18 @@
     "k8s.io/apimachinery/pkg/apimachinery/registered",
     "k8s.io/apimachinery/pkg/apis/meta/internalversion",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/conversion",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
+    "k8s.io/apimachinery/pkg/util/errors",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/version",
+    "k8s.io/apiserver/pkg/endpoints",
     "k8s.io/apiserver/pkg/endpoints/discovery",
+    "k8s.io/apiserver/pkg/endpoints/handlers",
+    "k8s.io/apiserver/pkg/endpoints/handlers/negotiation",
+    "k8s.io/apiserver/pkg/endpoints/metrics",
     "k8s.io/apiserver/pkg/endpoints/request",
     "k8s.io/apiserver/pkg/registry/rest",
     "k8s.io/apiserver/pkg/server",
