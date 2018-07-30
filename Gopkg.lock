@@ -10,6 +10,18 @@
   revision = "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
 
 [[projects]]
+  branch = "master"
+  digest = "1:918c668e0d23d55f2770dc61444d996d17298c21f1ce6393fd31b0b49eb466bd"
+  name = "github.com/GoogleCloudPlatform/k8s-stackdriver"
+  packages = [
+    "custom-metrics-stackdriver-adapter/pkg/apiserver/installer",
+    "custom-metrics-stackdriver-adapter/pkg/provider",
+    "custom-metrics-stackdriver-adapter/pkg/registry/custom_metrics",
+  ]
+  pruneopts = "UT"
+  revision = "50cae46b73bf8715942dfcb598a9117b54aeac0a"
+
+[[projects]]
   digest = "1:0803645e1f57fb5271a6edc7570b9ea59bac2e5de67957075a43f3d74c8dbd97"
   name = "github.com/NYTimes/gziphandler"
   packages = ["."]
@@ -262,6 +274,14 @@
   version = "v0.3.5"
 
 [[projects]]
+  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
+
+[[projects]]
   digest = "1:eaefc85d32c03e5f0c2b88ea2f79fce3d993e2c78316d21319575dd4ea9153ca"
   name = "github.com/json-iterator/go"
   packages = ["."]
@@ -377,6 +397,14 @@
   ]
   pruneopts = "UT"
   revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
+
+[[projects]]
+  digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
+  version = "v0.0.3"
 
 [[projects]]
   digest = "1:9424f440bba8f7508b69414634aef3b2b3a877e522d8a4624692412805407bb7"
@@ -738,7 +766,7 @@
   revision = "563a7d9b065ea20fbdbe24506369772acb413d8d"
 
 [[projects]]
-  digest = "1:c374ca113fdaa221b74cb9b709bfa07e1a7df3b28824d403bc4281d6755b3bf7"
+  digest = "1:6fa19316ccab4ed3aaadc615ff1a106a25e3b95693083a67d9c8df3f459242d4"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -846,6 +874,7 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
+    "restmapper",
     "testing",
     "tools/auth",
     "tools/cache",
@@ -885,11 +914,15 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eac4293c7cd1d1ad005f0ccb40c6b869becf5a5e620b34775271e642bf3df5f7"
+  digest = "1:bdb7d43612821229b9e1e30402ea16989179e07db6980aed0d962c564088223c"
   name = "k8s.io/metrics"
   packages = [
     "pkg/apis/custom_metrics",
+    "pkg/apis/custom_metrics/install",
+    "pkg/apis/custom_metrics/v1beta1",
     "pkg/apis/external_metrics",
+    "pkg/apis/external_metrics/install",
+    "pkg/apis/external_metrics/v1beta1",
   ]
   pruneopts = "UT"
   revision = "22022401af62d9a22b30b5b36a4227e60f404b17"
@@ -898,15 +931,21 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/GoogleCloudPlatform/k8s-stackdriver/custom-metrics-stackdriver-adapter/pkg/apiserver/installer",
+    "github.com/GoogleCloudPlatform/k8s-stackdriver/custom-metrics-stackdriver-adapter/pkg/provider",
+    "github.com/GoogleCloudPlatform/k8s-stackdriver/custom-metrics-stackdriver-adapter/pkg/registry/custom_metrics",
     "github.com/emicklei/go-restful",
     "github.com/emicklei/go-restful-swagger12",
     "github.com/golang/glog",
     "github.com/googleapis/gnostic/OpenAPIv2",
+    "github.com/spf13/cobra",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/meta",
+    "k8s.io/apimachinery/pkg/api/resource",
+    "k8s.io/apimachinery/pkg/apimachinery",
     "k8s.io/apimachinery/pkg/apimachinery/announced",
     "k8s.io/apimachinery/pkg/apimachinery/registered",
     "k8s.io/apimachinery/pkg/apis/meta/internalversion",
@@ -915,6 +954,7 @@
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
+    "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/util/errors",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/version",
@@ -929,11 +969,16 @@
     "k8s.io/apiserver/pkg/server/options",
     "k8s.io/apiserver/pkg/util/logs",
     "k8s.io/client-go/discovery",
+    "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/pkg/version",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/restmapper",
     "k8s.io/client-go/testing",
+    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/metrics/pkg/apis/custom_metrics",
+    "k8s.io/metrics/pkg/apis/custom_metrics/install",
     "k8s.io/metrics/pkg/apis/external_metrics",
+    "k8s.io/metrics/pkg/apis/external_metrics/install",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

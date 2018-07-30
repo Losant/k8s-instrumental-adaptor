@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/restmapper"
 )
 
 // RegeneratingDiscoveryRESTMapper is a RESTMapper which Regenerates its cache of mappings periodically.
@@ -53,11 +54,11 @@ func (m *RegeneratingDiscoveryRESTMapper) RunUntil(stop <-chan struct{}) {
 
 // RegenerateMappings regenerates cached mappings.
 func (m *RegeneratingDiscoveryRESTMapper) RegenerateMappings() error {
-	resources, err := discovery.GetAPIGroupResources(m.discoveryClient)
+	resources, err := restmapper.GetAPIGroupResources(m.discoveryClient)
 	if err != nil {
 		return err
 	}
-	newDelegate := discovery.NewRESTMapper(resources, m.versionInterfaces)
+	newDelegate := restmapper.NewRESTMapper(resources, m.versionInterfaces)
 
 	// don't lock until we're ready to replace
 	m.mu.Lock()

@@ -17,19 +17,19 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"os"
 	"runtime"
 
-	// "github.com/GoogleCloudPlatform/k8s-stackdriver/custom-metrics-stackdriver-adapter/pkg/adapter/server"
-
-	// _ "k8s.io/apiserver/pkg/endpoints/discovery"
-	// _ "k8s.io/apiserver/pkg/server"
 	_ "k8s.io/apimachinery/pkg/apimachinery/announced"
 	_ "k8s.io/apimachinery/pkg/apimachinery/registered"
+	"k8s.io/apimachinery/pkg/util/wait"
+	_ "k8s.io/apiserver/pkg/endpoints/discovery"
+	_ "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/util/logs"
 	// Following deps are not saved in vendor/ by godep save, so import it explicitly
-	// _ "cloud.google.com/go"
-	// _ "github.com/prometheus/procfs/xfs"
+
+	"github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_adaptor/server"
 )
 
 func main() {
@@ -40,9 +40,9 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	// cmd := server.NewCommandStartSampleAdapterServer(os.Stdout, os.Stderr, wait.NeverStop)
-	// cmd.Flags().AddGoFlagSet(flag.CommandLine)
-	// if err := cmd.Execute(); err != nil {
-	// 	panic(err)
-	// }
+	cmd := server.NewCommandStartSampleAdapterServer(os.Stdout, os.Stderr, wait.NeverStop)
+	cmd.Flags().AddGoFlagSet(flag.CommandLine)
+	if err := cmd.Execute(); err != nil {
+		panic(err)
+	}
 }
