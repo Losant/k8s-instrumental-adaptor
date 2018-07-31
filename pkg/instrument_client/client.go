@@ -9,7 +9,7 @@ type Client struct {
 	BaseURL           string
 	InstrumentalToken string
 
-	httpClient *http.Client
+	HttpClient *http.Client
 }
 
 // Query is used to build the URL string passed to the request.Query.Query
@@ -30,7 +30,7 @@ func NewClient(httpClient *http.Client, token string) *Client {
 		httpClient = http.DefaultClient
 	}
 	c := &Client{
-		httpClient: httpClient,
+		HttpClient: httpClient,
 	}
 
 	c.BaseURL = DefaultBaseURL
