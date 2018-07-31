@@ -41,8 +41,8 @@ func NewClient(httpClient *http.Client, token string) *Client {
 	return c
 }
 
-func (c *Client) GetInstrumentalMetric(query Query) (InstrumentalMetric, error) {
-	im := InstrumentalMetric{}
+func (c *Client) GetInstrumentalMetric(query Query) (*InstrumentalMetric, error) {
+	var im InstrumentalMetric
 	req, err := c.NewQueryRequest(query)
 	if err != nil {
 		log.Printf("%v", err)
@@ -54,9 +54,13 @@ func (c *Client) GetInstrumentalMetric(query Query) (InstrumentalMetric, error) 
 	}
 	defer resp.Body.Close()
 
-	json.NewDecoder(resp.Body).Decode(im)
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&im)
+	if err != nil {
+		log.Println(err)
+	}
 
-	return im, nil
+	return &im, nil
 }
 
 // NewQueryRequest sets up Instrumental query and returns an *http.Request and an error
