@@ -18,9 +18,9 @@ type InstrumentalMetric struct {
 				Resolution int `json:"resolution"`
 				Duration   int `json:"duration"`
 				Data       []struct {
-					S int     `json:"s"`
-					C int     `json:"c"`
-					A float64 `json:"a"`
+					Sum     float64 `json:"s"`
+					Count   int     `json:"c"`
+					Average float64 `json:"a"`
 				} `json:"data"`
 			} `json:"values"`
 		} `json:"metrics"`
