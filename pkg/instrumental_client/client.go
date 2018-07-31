@@ -1,6 +1,8 @@
 package instrumental
 
 import (
+	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -37,6 +39,24 @@ func NewClient(httpClient *http.Client, token string) *Client {
 	c.InstrumentalToken = token
 
 	return c
+}
+
+func (c *Client) GetInstrumentalMetric(query Query) (InstrumentalMetric, error) {
+	im := InstrumentalMetric{}
+	req, err := c.NewQueryRequest(query)
+	if err != nil {
+		log.Printf("%v", err)
+	}
+
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	defer resp.Body.Close()
+
+	json.NewDecoder(resp.Body).Decode(im)
+
+	return im, nil
 }
 
 // NewQueryRequest sets up Instrumental query and returns an *http.Request and an error
