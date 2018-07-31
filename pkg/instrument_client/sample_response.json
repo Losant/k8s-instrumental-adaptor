@@ -1,0 +1,41 @@
+{
+	"version": 2,
+	"flags": 0,
+	"response": {
+	  "metrics": [
+		{
+		  "id": "flowDriver.workflowQueue.processed",
+		  "project_id": 904,
+		  "expression": "flowDriver.workflowQueue.processed",
+		  "name": "flowDriver.workflowQueue.processed",
+		  "type": "gauge",
+		  "created_at": 0,
+		  "updated_at": 0,
+		  "values": {
+			"start": 1532985960,
+			"stop": 1532986080,
+			"resolution": 60,
+			"duration": 120,
+			"data": [
+			  {
+				"s": 2086143,
+				"c": 7755,
+				"a": 269.0061895551257
+			  },
+			  {
+				"s": 1793698,
+				"c": 7531,
+				"a": 238.1752755278183
+			  },
+			  {
+				"s": 1524,
+				"c": 35,
+				"a": 43.54285714285714
+			  }
+			]
+		  }
+		}
+	  ],
+	  "notices": []
+	}
+  }
