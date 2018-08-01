@@ -65,7 +65,7 @@ func NewStackdriverProvider() provider.ExternalMetricsProvider {
 	}
 }
 
-func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {
+func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {	
 	// Build the query (ideally get metricName, duration?, resolution?, and time? from yaml)
 	q := instrumental.Query{
 		Path: "api/2/metrics",
@@ -73,33 +73,46 @@ func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName st
 		Resolution: 60,
 	}
 
-	// This could all be done in the client itself ???
-	req, err := i.instrumentalClient.NewQueryRequest(q)
+	metric, err := i.instrumentalClient.GetInstrumentalMetric(q)
 	if err != nil {
-		log.Printf("There was a problem requesting the Instrumental API: %v", err)
-	}
-	resp, err := instrumentalClient.HttpClient.Do(req)
-	if err != nil {
-		log.Fatalf("%v", err)
+		log.Printf("Unable to get Instrumental metrics: %v\n", err)
 	}
 
-	defer resp.Body.Close()
+	// Delete this!
+	fmt.Printf("%v", metric)
 
-	// Really, convert to struct and then get a specific average value out and put it
-	// in externalMetricValueList{}.
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("%v", err)
+	metricValues := []external_metrics.ExternalMetricValue{}
+	for _, v := metric.Response.Metrics[0].Values {
+		if len(v.Data) <= 0 {
+			return apierr.NewInternalError(fmt.Errorf("Empty time series returned from Stackdriver"))
+		}
+
+		// Get the second to last data point.  The last data point is very volitile and changes often.
+		dataLength = len(v.Data)
+		point := v.Data[dataLength - 1]
+		endTime, err := time.Parse(time.PRC3339, v.Stop)
+		if err != nil {
+			return nil, apierr.NewInternalError(fmt.Errorf("Timeseries from Instrumental has incorrect end time: %s", val.Stop))
+		}
+		metricValue := external_metrics.ExternalMetricValue{
+			Timestamp: metav1.NewTime(endTime),
+			MetricName: metricName,
+			MetricLabels: map[string]string{}
+		}
+		value := point.A
+		switch {
+		case value.int64 != nil:
+			metricValue.Value = *resource.NewQuantity(value, resource.DecimalSI)
+		case value.float64 != nil:
+			metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
+		default:
+			return nil, apierr.NewBadRequest(fmt.Sprintf("Expected metric of type DoubleValue or Int64Value, but received TypedValue: %v", value))
+		}
+		metricValues = append(metricValues, metricValue)
 	}
 
-	fmt.Printf("%T", body)
-
-	fmt.Println(string(body))
-	
 	// Replace this with the external metric
-	return &external_metrics.ExternalMetricValueList{
-		Items: []ExternalMeticValue{}
-	}
+	return metricValues
 }
 
 func (i *InstrumentalProvider) 	ListAllExternalMetrics() []provider.ExternalMetricInfo {
