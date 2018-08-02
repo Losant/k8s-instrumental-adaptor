@@ -31,7 +31,6 @@ import (
 
 	"github.com/emicklei/go-restful-swagger12"
 	"github.com/go-openapi/spec"
-	"github.com/golang/glog"
 	"github.com/pborman/uuid"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -66,6 +65,7 @@ import (
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 
 	// install apis
+	"github.com/golang/glog"
 	_ "k8s.io/apiserver/pkg/apis/apiserver/install"
 )
 
@@ -181,6 +181,9 @@ type Config struct {
 	// values below here are targets for removal
 	//===========================================================================
 
+	// The port on PublicAddress where a read-write server will be installed.
+	// Defaults to 6443 if not set.
+	ReadWritePort int
 	// PublicAddress is the IP address where members of the cluster (kubelet,
 	// kube-proxy, services, etc.) can reach the GenericAPIServer.
 	// If nil or 0.0.0.0, the host's default interface will be used.
@@ -247,11 +250,12 @@ type AuthorizationInfo struct {
 func NewConfig(codecs serializer.CodecFactory) *Config {
 	return &Config{
 		Serializer:                   codecs,
+		ReadWritePort:                443,
 		BuildHandlerChainFunc:        DefaultBuildHandlerChain,
 		HandlerChainWaitGroup:        new(utilwaitgroup.SafeWaitGroup),
 		LegacyAPIGroupPrefixes:       sets.NewString(DefaultLegacyAPIPrefix),
 		DisabledPostStartHooks:       sets.NewString(),
-		HealthzChecks:                []healthz.HealthzChecker{healthz.PingHealthz, healthz.LogHealthz},
+		HealthzChecks:                []healthz.HealthzChecker{healthz.PingHealthz},
 		EnableIndex:                  true,
 		EnableDiscovery:              true,
 		EnableProfiling:              true,
@@ -350,47 +354,39 @@ type CompletedConfig struct {
 // Complete fills in any fields not set that are required to have valid data and can be derived
 // from other fields. If you're going to `ApplyOptions`, do that first. It's mutating the receiver.
 func (c *Config) Complete(informers informers.SharedInformerFactory) CompletedConfig {
-	if len(c.ExternalAddress) == 0 && c.PublicAddress != nil {
-		c.ExternalAddress = c.PublicAddress.String()
+	host := c.ExternalAddress
+	if host == "" && c.PublicAddress != nil {
+		host = c.PublicAddress.String()
 	}
 
-	// if there is no port, and we listen on one securely, use that one
-	if _, _, err := net.SplitHostPort(c.ExternalAddress); err != nil {
-		if c.SecureServing == nil {
-			glog.Fatalf("cannot derive external address port without listening on a secure port.")
-		}
-		_, port, err := c.SecureServing.HostPort()
-		if err != nil {
-			glog.Fatalf("cannot derive external address from the secure port: %v", err)
-		}
-		c.ExternalAddress = net.JoinHostPort(c.ExternalAddress, strconv.Itoa(port))
+	// if there is no port, and we have a ReadWritePort, use that
+	if _, _, err := net.SplitHostPort(host); err != nil && c.ReadWritePort != 0 {
+		host = net.JoinHostPort(host, strconv.Itoa(c.ReadWritePort))
 	}
+	c.ExternalAddress = host
 
-	if c.OpenAPIConfig != nil {
-		if c.OpenAPIConfig.SecurityDefinitions != nil {
-			// Setup OpenAPI security: all APIs will have the same authentication for now.
-			c.OpenAPIConfig.DefaultSecurity = []map[string][]string{}
-			keys := []string{}
-			for k := range *c.OpenAPIConfig.SecurityDefinitions {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				c.OpenAPIConfig.DefaultSecurity = append(c.OpenAPIConfig.DefaultSecurity, map[string][]string{k: {}})
-			}
-			if c.OpenAPIConfig.CommonResponses == nil {
-				c.OpenAPIConfig.CommonResponses = map[int]spec.Response{}
-			}
-			if _, exists := c.OpenAPIConfig.CommonResponses[http.StatusUnauthorized]; !exists {
-				c.OpenAPIConfig.CommonResponses[http.StatusUnauthorized] = spec.Response{
-					ResponseProps: spec.ResponseProps{
-						Description: "Unauthorized",
-					},
-				}
+	if c.OpenAPIConfig != nil && c.OpenAPIConfig.SecurityDefinitions != nil {
+		// Setup OpenAPI security: all APIs will have the same authentication for now.
+		c.OpenAPIConfig.DefaultSecurity = []map[string][]string{}
+		keys := []string{}
+		for k := range *c.OpenAPIConfig.SecurityDefinitions {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			c.OpenAPIConfig.DefaultSecurity = append(c.OpenAPIConfig.DefaultSecurity, map[string][]string{k: {}})
+		}
+		if c.OpenAPIConfig.CommonResponses == nil {
+			c.OpenAPIConfig.CommonResponses = map[int]spec.Response{}
+		}
+		if _, exists := c.OpenAPIConfig.CommonResponses[http.StatusUnauthorized]; !exists {
+			c.OpenAPIConfig.CommonResponses[http.StatusUnauthorized] = spec.Response{
+				ResponseProps: spec.ResponseProps{
+					Description: "Unauthorized",
+				},
 			}
 		}
 
-		// make sure we populate info, and info.version, if not manually set
 		if c.OpenAPIConfig.Info == nil {
 			c.OpenAPIConfig.Info = &spec.Info{}
 		}
@@ -413,7 +409,24 @@ func (c *Config) Complete(informers informers.SharedInformerFactory) CompletedCo
 		c.DiscoveryAddresses = discovery.DefaultAddresses{DefaultAddress: c.ExternalAddress}
 	}
 
-	AuthorizeClientBearerToken(c.LoopbackClientConfig, &c.Authentication, &c.Authorization)
+	// If the loopbackclientconfig is specified AND it has a token for use against the API server
+	// wrap the authenticator and authorizer in loopback authentication logic
+	if c.Authentication.Authenticator != nil && c.Authorization.Authorizer != nil && c.LoopbackClientConfig != nil && len(c.LoopbackClientConfig.BearerToken) > 0 {
+		privilegedLoopbackToken := c.LoopbackClientConfig.BearerToken
+		var uid = uuid.NewRandom().String()
+		tokens := make(map[string]*user.DefaultInfo)
+		tokens[privilegedLoopbackToken] = &user.DefaultInfo{
+			Name:   user.APIServerUser,
+			UID:    uid,
+			Groups: []string{user.SystemPrivilegedGroup},
+		}
+
+		tokenAuthenticator := authenticatorfactory.NewFromTokens(tokens)
+		c.Authentication.Authenticator = authenticatorunion.New(tokenAuthenticator, c.Authentication.Authenticator)
+
+		tokenAuthorizer := authorizerfactory.NewPrivilegedGroups(user.SystemPrivilegedGroup)
+		c.Authorization.Authorizer = authorizerunion.New(tokenAuthorizer, c.Authorization.Authorizer)
+	}
 
 	if c.RequestInfoResolver == nil {
 		c.RequestInfoResolver = NewRequestInfoResolver(c)
@@ -451,7 +464,6 @@ func (c completedConfig) New(name string, delegationTarget DelegationTarget) (*G
 		admissionControl:       c.AdmissionControl,
 		Serializer:             c.Serializer,
 		AuditBackend:           c.AuditBackend,
-		Authorizer:             c.Authorization.Authorizer,
 		delegationTarget:       delegationTarget,
 		HandlerChainWaitGroup:  c.HandlerChainWaitGroup,
 
@@ -601,43 +613,4 @@ func NewRequestInfoResolver(c *Config) *apirequest.RequestInfoFactory {
 		APIPrefixes:          apiPrefixes,
 		GrouplessAPIPrefixes: legacyAPIPrefixes,
 	}
-}
-
-func (s *SecureServingInfo) HostPort() (string, int, error) {
-	if s == nil || s.Listener == nil {
-		return "", 0, fmt.Errorf("no listener found")
-	}
-	addr := s.Listener.Addr().String()
-	host, portStr, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to get port from listener address %q: %v", addr, err)
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return "", 0, fmt.Errorf("invalid non-numeric port %q", portStr)
-	}
-	return host, port, nil
-}
-
-// AuthorizeClientBearerToken wraps the authenticator and authorizer in loopback authentication logic
-// if the loopback client config is specified AND it has a bearer token.
-func AuthorizeClientBearerToken(loopback *restclient.Config, authn *AuthenticationInfo, authz *AuthorizationInfo) {
-	if loopback == nil || authn == nil || authz == nil || authn.Authenticator == nil && authz.Authorizer == nil || len(loopback.BearerToken) == 0 {
-		return
-	}
-
-	privilegedLoopbackToken := loopback.BearerToken
-	var uid = uuid.NewRandom().String()
-	tokens := make(map[string]*user.DefaultInfo)
-	tokens[privilegedLoopbackToken] = &user.DefaultInfo{
-		Name:   user.APIServerUser,
-		UID:    uid,
-		Groups: []string{user.SystemPrivilegedGroup},
-	}
-
-	tokenAuthenticator := authenticatorfactory.NewFromTokens(tokens)
-	authn.Authenticator = authenticatorunion.New(tokenAuthenticator, authn.Authenticator)
-
-	tokenAuthorizer := authorizerfactory.NewPrivilegedGroups(user.SystemPrivilegedGroup)
-	authz.Authorizer = authorizerunion.New(tokenAuthorizer, authz.Authorizer)
 }

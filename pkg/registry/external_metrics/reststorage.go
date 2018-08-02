@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
+	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/provider"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"

@@ -14,13 +14,12 @@ import (
 	"k8s.io/client-go/restmapper"
 )
 
-// RegeneratingDiscoveryRESTMapper is a RESTMapper which Regenerates its cache of mappings periodically.
+// RengeneratingDiscoveryRESTMapper is a RESTMapper which Regenerates its cache of mappings periodically.
 // It functions by recreating a normal discovery RESTMapper at the specified interval.
 // We don't refresh automatically on cache misses, since we get called on every label, plenty of which will
 // be unrelated to Kubernetes resources.
 type RegeneratingDiscoveryRESTMapper struct {
-	discoveryClient   discovery.DiscoveryInterface
-	versionInterfaces meta.VersionInterfacesFunc
+	discoveryClient discovery.DiscoveryInterface
 
 	refreshInterval time.Duration
 
@@ -29,12 +28,10 @@ type RegeneratingDiscoveryRESTMapper struct {
 	delegate meta.RESTMapper
 }
 
-// NewRESTMapper creates RegeneratingDiscoveryRESTMapper.
-func NewRESTMapper(discoveryClient discovery.DiscoveryInterface, versionInterfaces meta.VersionInterfacesFunc, refreshInterval time.Duration) (*RegeneratingDiscoveryRESTMapper, error) {
+func NewRESTMapper(discoveryClient discovery.DiscoveryInterface, refreshInterval time.Duration) (*RegeneratingDiscoveryRESTMapper, error) {
 	mapper := &RegeneratingDiscoveryRESTMapper{
-		discoveryClient:   discoveryClient,
-		versionInterfaces: versionInterfaces,
-		refreshInterval:   refreshInterval,
+		discoveryClient: discoveryClient,
+		refreshInterval: refreshInterval,
 	}
 	if err := mapper.RegenerateMappings(); err != nil {
 		return nil, fmt.Errorf("unable to populate initial set of REST mappings: %v", err)
@@ -43,7 +40,7 @@ func NewRESTMapper(discoveryClient discovery.DiscoveryInterface, versionInterfac
 	return mapper, nil
 }
 
-// RunUntil runs the mapping refresher until the given stop channel is closed.
+// RunUtil runs the mapping refresher until the given stop channel is closed.
 func (m *RegeneratingDiscoveryRESTMapper) RunUntil(stop <-chan struct{}) {
 	go wait.Until(func() {
 		if err := m.RegenerateMappings(); err != nil {
@@ -52,13 +49,12 @@ func (m *RegeneratingDiscoveryRESTMapper) RunUntil(stop <-chan struct{}) {
 	}, m.refreshInterval, stop)
 }
 
-// RegenerateMappings regenerates cached mappings.
 func (m *RegeneratingDiscoveryRESTMapper) RegenerateMappings() error {
 	resources, err := restmapper.GetAPIGroupResources(m.discoveryClient)
 	if err != nil {
 		return err
 	}
-	newDelegate := restmapper.NewRESTMapper(resources, m.versionInterfaces)
+	newDelegate := restmapper.NewDiscoveryRESTMapper(resources)
 
 	// don't lock until we're ready to replace
 	m.mu.Lock()
@@ -68,8 +64,6 @@ func (m *RegeneratingDiscoveryRESTMapper) RegenerateMappings() error {
 	return nil
 }
 
-// KindFor takes a partial resource and returns back the single match.
-// It returns an error if there are multiple matches.
 func (m *RegeneratingDiscoveryRESTMapper) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -77,8 +71,6 @@ func (m *RegeneratingDiscoveryRESTMapper) KindFor(resource schema.GroupVersionRe
 	return m.delegate.KindFor(resource)
 }
 
-// KindsFor takes a partial resource and returns back the list of
-// potential kinds in priority order.
 func (m *RegeneratingDiscoveryRESTMapper) KindsFor(resource schema.GroupVersionResource) ([]schema.GroupVersionKind, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -86,9 +78,6 @@ func (m *RegeneratingDiscoveryRESTMapper) KindsFor(resource schema.GroupVersionR
 	return m.delegate.KindsFor(resource)
 
 }
-
-// ResourceFor takes a partial resource and returns back the single
-// match. It returns an error if there are multiple matches.
 func (m *RegeneratingDiscoveryRESTMapper) ResourceFor(input schema.GroupVersionResource) (schema.GroupVersionResource, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -96,9 +85,6 @@ func (m *RegeneratingDiscoveryRESTMapper) ResourceFor(input schema.GroupVersionR
 	return m.delegate.ResourceFor(input)
 
 }
-
-// ResourcesFor takes a partial resource and returns back the list of
-// potential resource in priority order.
 func (m *RegeneratingDiscoveryRESTMapper) ResourcesFor(input schema.GroupVersionResource) ([]schema.GroupVersionResource, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -106,9 +92,6 @@ func (m *RegeneratingDiscoveryRESTMapper) ResourcesFor(input schema.GroupVersion
 	return m.delegate.ResourcesFor(input)
 
 }
-
-// RESTMapping identifies a preferred resource mapping for the
-// provided group kind.
 func (m *RegeneratingDiscoveryRESTMapper) RESTMapping(gk schema.GroupKind, versions ...string) (*meta.RESTMapping, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -116,19 +99,12 @@ func (m *RegeneratingDiscoveryRESTMapper) RESTMapping(gk schema.GroupKind, versi
 	return m.delegate.RESTMapping(gk, versions...)
 
 }
-
-// RESTMappings returns the RESTMappings for the provided group kind
-// in a rough internal preferred order. If no kind is found, it will
-// return a NoResourceMatchError.
 func (m *RegeneratingDiscoveryRESTMapper) RESTMappings(gk schema.GroupKind, versions ...string) ([]*meta.RESTMapping, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	return m.delegate.RESTMappings(gk, versions...)
 }
-
-// ResourceSingularizer converts a resource name from plural to
-// singular (e.g., from pods to pod).
 func (m *RegeneratingDiscoveryRESTMapper) ResourceSingularizer(resource string) (singular string, err error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

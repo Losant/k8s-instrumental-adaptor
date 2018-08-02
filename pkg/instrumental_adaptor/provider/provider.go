@@ -17,14 +17,14 @@ limitations under the License.
 package provider
 
 import (
+	"fmt"
+	"log"
+	"net/http"
 	"time"
 
-	"github.com/golang/glog"
-	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
-	// corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	// apimeta "k8s.io/apimachinery/pkg/api/meta"
-
 	instrumental "github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_client"
+	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/metrics/pkg/apis/external_metrics"
 )
 
@@ -49,27 +49,27 @@ type externalMetric struct {
 // InstrumentalProvider is a provider of custom metrics from Instrumental.
 type InstrumentalProvider struct {
 	instrumentalClient *instrumental.Client
-	externalMetrics []externalMetric
+	externalMetrics    []externalMetric
 }
-
-client := &http.Client{
-	Timeout: time.Second() * 10,
-}
-instrumentalClient := instrumental.NewClient(client, "asjkdlf")
 
 // NewStackdriverProvider creates a StackdriverProvider
 func NewStackdriverProvider() provider.ExternalMetricsProvider {
+	var client *http.Client
+	client = &http.Client{
+		Timeout: time.Second * 10,
+	}
+	instrumentalClient := instrumental.NewClient(client, "asjkdlf")
 	return &InstrumentalProvider{
-		instrumentalClient: instrumentalClient
-		externalProvider: nil
+		instrumentalClient: instrumentalClient,
+		// externalMetrics:    []externalMetric{},
 	}
 }
 
-func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {	
+func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {
 	// Build the query (ideally get metricName, duration?, resolution?, and time? from yaml)
 	q := instrumental.Query{
-		Path: "api/2/metrics",
-		Duration: 120,
+		Path:       "api/2/metrics",
+		Duration:   120,
 		Resolution: 60,
 	}
 
@@ -77,40 +77,41 @@ func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName st
 	if err != nil {
 		log.Printf("Unable to get Instrumental metrics: %v\n", err)
 	}
+	fmt.Println(metric)
 
 	metricValues := []external_metrics.ExternalMetricValue{}
-	for _, v := metric.Response.Metrics[0] {
-		if len(v.Values.Data) <= 0 {
-			return apierr.NewInternalError(fmt.Errorf("Empty time series returned from Stackdriver"))
-		}
+	// for _, v := metric.Response.Metrics[0] {
+	// 	if len(v.Values.Data) <= 0 {
+	// 		return apierr.NewInternalError(fmt.Errorf("Empty time series returned from Stackdriver"))
+	// 	}
 
-		// Get the second to last data point.  The last data point is very volitile and changes often.
-		dataLength = len(v.Values.Data)
-		point := v.Values.Data[dataLength - 1]
-		endTime, err := time.Parse(time.PRC3339, v.Values.Stop)
-		if err != nil {
-			return nil, apierr.NewInternalError(fmt.Errorf("Timeseries from Instrumental has incorrect end time: %s", val.Stop))
-		}
-		metricValue := external_metrics.ExternalMetricValue{
-			Timestamp: metav1.NewTime(endTime),
-			MetricName: metricName,
-			MetricLabels: map[string]string{
-				metricLabels["resource.type"]: ../v.Type,
-				metricLabels["resource.name"]: v.Name,
-			}
-		}
-		value := point.A
-		switch {
-		case value.int64 != nil:
-			metricValue.Value = *resource.NewQuantity(value, resource.DecimalSI)
-		case value.float64 != nil:
-			metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
-		default:
-			return nil, apierr.NewBadRequest(fmt.Sprintf("Expected metric of type DoubleValue or Int64Value, but received TypedValue: %v", value))
-		}
-		metricValues = append(metricValues, metricValue)
-	}
-	
+	// 	// Get the second to last data point.  The last data point is very volitile and changes often.
+	// 	dataLength = len(v.Values.Data)
+	// 	point := v.Values.Data[dataLength - 1]
+	// 	endTime, err := time.Parse(time.PRC3339, v.Values.Stop)
+	// 	if err != nil {
+	// 		return nil, apierr.NewInternalError(fmt.Errorf("Timeseries from Instrumental has incorrect end time: %s", val.Stop))
+	// 	}
+	// 	metricValue := external_metrics.ExternalMetricValue{
+	// 		Timestamp: metav1.NewTime(endTime),
+	// 		MetricName: metricName,
+	// 		MetricLabels: map[string]string{
+	// 			metricLabels["resource.type"]: v.Type,
+	// 			metricLabels["resource.name"]: v.Name,
+	// 		}
+	// 	}
+	// 	value := point.A
+	// 	switch {
+	// 	case value.int64 != nil:
+	// 		metricValue.Value = *resource.NewQuantity(value, resource.DecimalSI)
+	// 	case value.float64 != nil:
+	// 		metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
+	// 	default:
+	// 		return nil, apierr.NewBadRequest(fmt.Sprintf("Expected metric of type DoubleValue or Int64Value, but received TypedValue: %v", value))
+	// 	}
+	// 	metricValues = append(metricValues, metricValue)
+	// }
+
 	return &external_metrics.ExternalMetricValueList{
 		Items: metricValues,
 	}, nil
@@ -118,19 +119,18 @@ func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName st
 
 // ListAllExternalMetrics returns a list of available external metrics.
 // Not implemented (currently returns empty list).
-func (i *InstrumentalProvider) 	ListAllExternalMetrics() []provider.ExternalMetricInfo {
-	return &provider.ExternalMetricInfo{}
+func (i *InstrumentalProvider) ListAllExternalMetrics() []provider.ExternalMetricInfo {
+	return []provider.ExternalMetricInfo{}
 }
-
 
 /*
 These are the interface functions for CustomMetricsProvider
 If we need to collect data on a per pods (or some other Kube object), then implement these.
 
-Note: If/when the CustomMetricsProvider is implemented, you will need to change the 
+Note: If/when the CustomMetricsProvider is implemented, you will need to change the
 NewStackdriverProvider to return provider.MetricsProvider instead of provider.ExternalMetricsProvider.
 
-provider.MetricsProvider is simply an interface that implements both the CustomMetricsProvider 
+provider.MetricsProvider is simply an interface that implements both the CustomMetricsProvider
 and the ExternalMetricsProvider.
 */
 

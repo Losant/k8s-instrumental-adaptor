@@ -21,15 +21,14 @@ import (
 	"io"
 	"net"
 
-	"github.com/losant/k8s-instrumental-adaptor/pkg/apiserver"
+	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/apiserver"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 )
 
-// CustomMetricsAdapterServerOptions stores a configuration for custom metrics adapter.
 type CustomMetricsAdapterServerOptions struct {
 	// genericoptions.ReccomendedOptions - EtcdOptions
-	SecureServing  *genericoptions.SecureServingOptions
+	SecureServing  *genericoptions.SecureServingOptionsWithLoopback
 	Authentication *genericoptions.DelegatingAuthenticationOptions
 	Authorization  *genericoptions.DelegatingAuthorizationOptions
 	Features       *genericoptions.FeatureOptions
@@ -38,11 +37,9 @@ type CustomMetricsAdapterServerOptions struct {
 	StdErr io.Writer
 }
 
-// NewCustomMetricsAdapterServerOptions creates CustomMetricsAdapterServerOptions for provided
-// output interface.
 func NewCustomMetricsAdapterServerOptions(out, errOut io.Writer) *CustomMetricsAdapterServerOptions {
 	o := &CustomMetricsAdapterServerOptions{
-		SecureServing:  genericoptions.NewSecureServingOptions(),
+		SecureServing:  genericoptions.WithLoopback(genericoptions.NewSecureServingOptions()),
 		Authentication: genericoptions.NewDelegatingAuthenticationOptions(),
 		Authorization:  genericoptions.NewDelegatingAuthorizationOptions(),
 		Features:       genericoptions.NewFeatureOptions(),
@@ -54,19 +51,14 @@ func NewCustomMetricsAdapterServerOptions(out, errOut io.Writer) *CustomMetricsA
 	return o
 }
 
-// Validate validates CustomMetricsAdapterServerOptions. Currently all fields are correctly set in
-// NewCustomMetricsAdapterServerOptions, so this is a no-op.
 func (o CustomMetricsAdapterServerOptions) Validate(args []string) error {
 	return nil
 }
 
-// Complete fills in any fields not set that are required to have valid data. Currently all fields
-// are set by NewCustomMetricsAdapterServerOptions, so this is a no-op.
 func (o *CustomMetricsAdapterServerOptions) Complete() error {
 	return nil
 }
 
-// Config returns apiserver.Config object from CustomMetricsAdapterServerOptions.
 func (o CustomMetricsAdapterServerOptions) Config() (*apiserver.Config, error) {
 	// TODO have a "real" external address (have an AdvertiseAddress?)
 	if err := o.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{net.ParseIP("127.0.0.1")}); err != nil {
@@ -78,10 +70,10 @@ func (o CustomMetricsAdapterServerOptions) Config() (*apiserver.Config, error) {
 		return nil, err
 	}
 
-	if err := o.Authentication.ApplyTo(serverConfig); err != nil {
+	if err := o.Authentication.ApplyTo(&serverConfig.Authentication, serverConfig.SecureServing, nil); err != nil {
 		return nil, err
 	}
-	if err := o.Authorization.ApplyTo(serverConfig); err != nil {
+	if err := o.Authorization.ApplyTo(&serverConfig.Authorization); err != nil {
 		return nil, err
 	}
 

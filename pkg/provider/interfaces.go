@@ -43,8 +43,9 @@ type ExternalMetricInfo struct {
 func (i CustomMetricInfo) String() string {
 	if i.Namespaced {
 		return fmt.Sprintf("%s/%s(namespaced)", i.GroupResource.String(), i.Metric)
+	} else {
+		return fmt.Sprintf("%s/%s", i.GroupResource.String(), i.Metric)
 	}
-	return fmt.Sprintf("%s/%s", i.GroupResource.String(), i.Metric)
 }
 
 // Normalized returns a copy of the current MetricInfo with the GroupResource resolved using the
@@ -112,7 +113,6 @@ type ExternalMetricsProvider interface {
 	ListAllExternalMetrics() []ExternalMetricInfo
 }
 
-// MetricsProvider is a common interface for Custom Metrics API and External Metrics API providers.
 type MetricsProvider interface {
 	CustomMetricsProvider
 	ExternalMetricsProvider

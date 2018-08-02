@@ -62,7 +62,6 @@ type backend struct {
 var _ audit.Backend = &backend{}
 
 // NewBackend returns a new truncating backend, using configuration passed in the parameters.
-// Truncate backend automatically runs and shut downs the delegate backend.
 func NewBackend(delegateBackend audit.Backend, config Config, groupVersion schema.GroupVersion) audit.Backend {
 	return &backend{
 		delegateBackend: delegateBackend,
@@ -129,11 +128,12 @@ func truncate(e *auditinternal.Event) *auditinternal.Event {
 }
 
 func (b *backend) Run(stopCh <-chan struct{}) error {
-	return b.delegateBackend.Run(stopCh)
+	// Nothing to do here
+	return nil
 }
 
 func (b *backend) Shutdown() {
-	b.delegateBackend.Shutdown()
+	// Nothing to do here
 }
 
 func (b *backend) calcSize(e *auditinternal.Event) (int64, error) {

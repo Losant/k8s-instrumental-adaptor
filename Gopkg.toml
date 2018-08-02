@@ -26,21 +26,21 @@
 
 
 [[constraint]]
-  name = "cloud.google.com/go"
-  version = "0.25.0"
+  name = "github.com/emicklei/go-restful"
+  version = "2.2.1"
+
+[[constraint]]
+  name = "github.com/emicklei/go-restful-swagger12"
+  version = "1.0.1"
 
 [[constraint]]
   branch = "master"
-  name = "github.com/prometheus/procfs"
+  name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
 
 [[constraint]]
-  branch = "master"
-  name = "k8s.io/apiserver"
+  name = "github.com/stretchr/testify"
+  version = "1.1.4"
 
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  name = "k8s.io/client-go"
-  version = "8.0.0"

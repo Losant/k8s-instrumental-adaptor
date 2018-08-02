@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
+	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/provider"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,8 +31,6 @@ import (
 	"k8s.io/metrics/pkg/apis/custom_metrics"
 )
 
-// REST is a wrapper for CustomMetricsProvider that provides implementation for Storage and Lister
-// interfaces.
 type REST struct {
 	cmProvider provider.CustomMetricsProvider
 }
@@ -40,7 +38,6 @@ type REST struct {
 var _ rest.Storage = &REST{}
 var _ rest.Lister = &REST{}
 
-// NewREST returns new REST object for provided CustomMetricsProvider.
 func NewREST(cmProvider provider.CustomMetricsProvider) *REST {
 	return &REST{
 		cmProvider: cmProvider,
@@ -49,19 +46,16 @@ func NewREST(cmProvider provider.CustomMetricsProvider) *REST {
 
 // Implement Storage
 
-// New returns empty MetricValue.
 func (r *REST) New() runtime.Object {
 	return &custom_metrics.MetricValue{}
 }
 
 // Implement Lister
 
-// NewList returns empty MetricValueList.
 func (r *REST) NewList() runtime.Object {
 	return &custom_metrics.MetricValueList{}
 }
 
-// List selects resources in the storage which match to the selector.
 func (r *REST) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	// populate the label selector, defaulting to all
 	selector := labels.Everything()
@@ -103,8 +97,9 @@ func (r *REST) List(ctx context.Context, options *metainternalversion.ListOption
 	// handle namespaced and root metrics
 	if name == "*" {
 		return r.handleWildcardOp(namespace, groupResource, selector, metricName)
+	} else {
+		return r.handleIndividualOp(namespace, groupResource, name, metricName)
 	}
-	return r.handleIndividualOp(namespace, groupResource, name, metricName)
 }
 
 func (r *REST) handleIndividualOp(namespace string, groupResource schema.GroupResource, name string, metricName string) (*custom_metrics.MetricValueList, error) {
@@ -128,6 +123,7 @@ func (r *REST) handleIndividualOp(namespace string, groupResource schema.GroupRe
 func (r *REST) handleWildcardOp(namespace string, groupResource schema.GroupResource, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
 	if namespace == "" {
 		return r.cmProvider.GetRootScopedMetricBySelector(groupResource, selector, metricName)
+	} else {
+		return r.cmProvider.GetNamespacedMetricBySelector(groupResource, namespace, selector, metricName)
 	}
-	return r.cmProvider.GetNamespacedMetricBySelector(groupResource, namespace, selector, metricName)
 }

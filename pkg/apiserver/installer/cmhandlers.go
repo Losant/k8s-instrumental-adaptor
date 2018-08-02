@@ -24,29 +24,20 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/handlers"
 	"k8s.io/apiserver/pkg/endpoints/handlers/negotiation"
 	"k8s.io/apiserver/pkg/endpoints/metrics"
-	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	"github.com/emicklei/go-restful"
 )
 
-// CMHandlers provides a function that registers resource handlers for Custom Metrics API.
 type CMHandlers struct{}
 
 // registerResourceHandlers registers the resource handlers for custom metrics.
 // Compared to the normal installer, this plays fast and loose a bit, but should still
 // follow the API conventions.
 func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restful.WebService) error {
-	context := a.group.Context
-
 	optionsExternalVersion := a.group.GroupVersion
 	if a.group.OptionsExternalVersion != nil {
 		optionsExternalVersion = *a.group.OptionsExternalVersion
-	}
-
-	mapping, err := a.restMapping()
-	if err != nil {
-		return err
 	}
 
 	fqKindToRegister, err := a.getResourceKind(a.group.DynamicStorage)
@@ -73,14 +64,6 @@ func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restf
 		return err
 	}
 
-	ctxFn := func(req *http.Request) request.Context {
-		if ctx, ok := context.Get(req); ok {
-			return request.WithUserAgent(ctx, req.Header.Get("User-Agent"))
-		}
-		return request.WithUserAgent(request.NewContext(), req.Header.Get("User-Agent"))
-	}
-
-	scope := mapping.Scope
 	nameParam := ws.PathParameter("name", "name of the described resource").DataType("string")
 	resourceParam := ws.PathParameter("resource", "the name of the resource").DataType("string")
 	subresourceParam := ws.PathParameter("subresource", "the name of the subresource").DataType("string")
@@ -94,16 +77,16 @@ func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restf
 	rootScopedPath := "{resource}/{name}/{subresource}"
 
 	// metrics describing namespaced objects (e.g. pods)
-	namespaceParam := ws.PathParameter(scope.ArgumentName(), scope.ParamDescription()).DataType("string")
+	namespaceParam := ws.PathParameter("namespace", "object name and auth scope, such as for teams and projects").DataType("string")
 	namespacedParams := []*restful.Parameter{
 		namespaceParam,
 		resourceParam,
 		nameParam,
 		subresourceParam,
 	}
-	namespacedPath := scope.ParamName() + "/{" + scope.ArgumentName() + "}/{resource}/{name}/{subresource}"
+	namespacedPath := "namespaces/{namespace}/{resource}/{name}/{subresource}"
 
-	namespaceSpecificPath := scope.ParamName() + "/{" + scope.ArgumentName() + "}/metrics/{name}"
+	namespaceSpecificPath := "namespaces/{namespace}/metrics/{name}"
 	namespaceSpecificParams := []*restful.Parameter{
 		namespaceParam,
 		nameParam,
@@ -114,14 +97,14 @@ func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restf
 	ws.Produces(allMediaTypes...)
 
 	reqScope := handlers.RequestScope{
-		ContextFunc:     ctxFn,
 		Serializer:      a.group.Serializer,
 		ParameterCodec:  a.group.ParameterCodec,
 		Creater:         a.group.Creater,
 		Convertor:       a.group.Convertor,
-		Copier:          a.group.Copier,
 		Typer:           a.group.Typer,
 		UnsafeConvertor: a.group.UnsafeConvertor,
+
+		// TODO: support TableConvertor?
 
 		// TODO: This seems wrong for cross-group subresources. It makes an assumption that a subresource and its parent are in the same group version. Revisit this.
 		Resource:    a.group.GroupVersion.WithResource("*"),
@@ -138,7 +121,6 @@ func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restf
 	doc := "list custom metrics describing an object or objects"
 	reqScope.Namer = MetricsNaming{
 		handlers.ContextBasedNaming{
-			GetContext:         ctxFn,
 			SelfLinker:         a.group.Linker,
 			ClusterScoped:      true,
 			SelfLinkPathPrefix: a.prefix + "/",
@@ -164,10 +146,9 @@ func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restf
 	// install the namespace-scoped route
 	reqScope.Namer = MetricsNaming{
 		handlers.ContextBasedNaming{
-			GetContext:         ctxFn,
 			SelfLinker:         a.group.Linker,
 			ClusterScoped:      false,
-			SelfLinkPathPrefix: gpath.Join(a.prefix, scope.ParamName()) + "/",
+			SelfLinkPathPrefix: gpath.Join(a.prefix, "namespaces") + "/",
 		},
 	}
 	namespacedHandler := metrics.InstrumentRouteFunc("LIST", "custom-metrics-namespaced", "", "namespace", restfulListResource(lister, nil, reqScope, false, a.minRequestTimeout))
@@ -185,13 +166,11 @@ func (ch *CMHandlers) registerResourceHandlers(a *MetricsAPIInstaller, ws *restf
 	ws.Route(namespacedRoute)
 
 	// install the special route for metrics describing namespaces (last b/c we modify the context func)
-	reqScope.ContextFunc = ctxFn
 	reqScope.Namer = MetricsNaming{
 		handlers.ContextBasedNaming{
-			GetContext:         ctxFn,
 			SelfLinker:         a.group.Linker,
 			ClusterScoped:      false,
-			SelfLinkPathPrefix: gpath.Join(a.prefix, scope.ParamName()) + "/",
+			SelfLinkPathPrefix: gpath.Join(a.prefix, "namespaces") + "/",
 		},
 	}
 	namespaceSpecificHandler := metrics.InstrumentRouteFunc("LIST", "custom-metrics-for-namespace", "", "cluster", restfulListResource(lister, nil, reqScope, false, a.minRequestTimeout))

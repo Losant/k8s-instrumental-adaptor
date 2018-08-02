@@ -29,10 +29,8 @@ import (
 	"time"
 
 	// "github.com/losant/k8s-instrumental-adapter/pkg/instrumental-adapter/provider"
-	// "github.com/losant/k8s-instrumental-adaptor/pkg/cmd/server"
 	"github.com/losant/k8s-instrumental-adaptor/pkg/cmd/server"
 	"github.com/losant/k8s-instrumental-adaptor/pkg/dynamicmapper"
-	"k8s.io/apimachinery/pkg/api/meta"
 )
 
 // NewCommandStartSampleAdapterServer provides a CLI handler for 'start master' command
@@ -111,7 +109,7 @@ func (o sampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan 
 	if err != nil {
 		return fmt.Errorf("unable to construct discovery client for dynamic client: %v", err)
 	}
-	dynamicMapper, err := dynamicmapper.NewRESTMapper(discoveryClient, meta.InterfacesForUnstructured, time.Minute)
+	dynamicMapper, err := dynamicmapper.NewRESTMapper(discoveryClient, time.Minute)
 	if err != nil {
 		return fmt.Errorf("unable to construct dynamic mapper: %v", err)
 	}
@@ -127,7 +125,7 @@ func (o sampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan 
 	// }
 	// provider := provider.NewStackdriverProvider(coreclient.New(client.RESTClient()), dynamicMapper, stackdriverService, 5*time.Minute, time.Minute, o.UseNewResourceModel)
 
-	provider := provider.NewSInstrumentalProvider(coreclient.New(client.RESTClient()), dynamicMapper, 5*time.Minute, time.Minute, o.UseNewResourceModel)
+	provider := provider.NewInstrumentalProvider(coreclient.New(client.RESTClient()), dynamicMapper, 5*time.Minute, time.Minute, o.UseNewResourceModel)
 	customMetricsProvider, externalMetricsProvider := provider, provider
 	if !o.EnableCustomMetricsAPI {
 		customMetricsProvider = nil
