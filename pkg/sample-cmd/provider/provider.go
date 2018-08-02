@@ -17,10 +17,13 @@ limitations under the License.
 package provider
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
+	"net/http"
+	"time"
+
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/provider"
+	instrumental "github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_client"
 	"k8s.io/metrics/pkg/apis/external_metrics"
 )
 
@@ -29,54 +32,8 @@ type externalMetric struct {
 	value external_metrics.ExternalMetricValue
 }
 
-var (
-	testingMetrics = []externalMetric{
-		{
-			info: provider.ExternalMetricInfo{
-				Metric: "my-external-metric",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-			},
-			value: external_metrics.ExternalMetricValue{
-				MetricName: "my-external-metric",
-				MetricLabels: map[string]string{
-					"foo": "bar",
-				},
-				Value: *resource.NewQuantity(42, resource.DecimalSI),
-			},
-		},
-		{
-			info: provider.ExternalMetricInfo{
-				Metric: "my-external-metric",
-				Labels: map[string]string{
-					"foo": "baz",
-				},
-			},
-			value: external_metrics.ExternalMetricValue{
-				MetricName: "my-external-metric",
-				MetricLabels: map[string]string{
-					"foo": "baz",
-				},
-				Value: *resource.NewQuantity(43, resource.DecimalSI),
-			},
-		},
-		{
-			info: provider.ExternalMetricInfo{
-				Metric: "other-external-metric",
-				Labels: map[string]string{},
-			},
-			value: external_metrics.ExternalMetricValue{
-				MetricName:   "other-external-metric",
-				MetricLabels: map[string]string{},
-				Value:        *resource.NewQuantity(44, resource.DecimalSI),
-			},
-		},
-	}
-)
-
 type testingProvider struct {
-	// instrumentalClient *instrumental.Client
+	instrumentalClient *instrumental.Client
 	// client dynamic.Interface
 	// mapper apimeta.RESTMapper
 
@@ -85,8 +42,12 @@ type testingProvider struct {
 }
 
 func NewFakeProvider() provider.ExternalMetricsProvider {
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	instrumentalClient := instrumental.NewClient(client, "ajsdklf")
 	return &testingProvider{
-		// instrumentalClient: instrumentalClient,
+		instrumentalClient: instrumentalClient,
 		// client:          client,
 		// mapper:          mapper,
 		// values:          make(map[provider.CustomMetricInfo]int64),
