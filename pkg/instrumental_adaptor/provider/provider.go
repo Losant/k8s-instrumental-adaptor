@@ -78,26 +78,26 @@ func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName st
 		log.Printf("Unable to get Instrumental metrics: %v\n", err)
 	}
 
-	// Delete this!
-	fmt.Printf("%v", metric)
-
 	metricValues := []external_metrics.ExternalMetricValue{}
-	for _, v := metric.Response.Metrics[0].Values {
-		if len(v.Data) <= 0 {
+	for _, v := metric.Response.Metrics[0] {
+		if len(v.Values.Data) <= 0 {
 			return apierr.NewInternalError(fmt.Errorf("Empty time series returned from Stackdriver"))
 		}
 
 		// Get the second to last data point.  The last data point is very volitile and changes often.
-		dataLength = len(v.Data)
-		point := v.Data[dataLength - 1]
-		endTime, err := time.Parse(time.PRC3339, v.Stop)
+		dataLength = len(v.Values.Data)
+		point := v.Values.Data[dataLength - 1]
+		endTime, err := time.Parse(time.PRC3339, v.Values.Stop)
 		if err != nil {
 			return nil, apierr.NewInternalError(fmt.Errorf("Timeseries from Instrumental has incorrect end time: %s", val.Stop))
 		}
 		metricValue := external_metrics.ExternalMetricValue{
 			Timestamp: metav1.NewTime(endTime),
 			MetricName: metricName,
-			MetricLabels: map[string]string{}
+			MetricLabels: map[string]string{
+				metricLabels["resource.type"]: ../v.Type,
+				metricLabels["resource.name"]: v.Name,
+			}
 		}
 		value := point.A
 		switch {
@@ -110,135 +110,44 @@ func (i *InstrumentalProvider) GetExternalMetric(namespace string, metricName st
 		}
 		metricValues = append(metricValues, metricValue)
 	}
-
-	// Replace this with the external metric
-	return metricValues
+	
+	return &external_metrics.ExternalMetricValueList{
+		Items: metricValues,
+	}, nil
 }
 
+// ListAllExternalMetrics returns a list of available external metrics.
+// Not implemented (currently returns empty list).
 func (i *InstrumentalProvider) 	ListAllExternalMetrics() []provider.ExternalMetricInfo {
 	return &provider.ExternalMetricInfo{}
 }
 
-// ################################################################################
-// These are the interface functions for CustomMetricsProvider
-// If we need to collect data on a per pods (or some other Kube object), then implement these
-// ################################################################################
 
-// func (i *InstrumentalProvider) GetRootScopedMetricByName(groupResource schema.GroupResource, name string, metricName string) (*custom_metrics.MetricValue, error) {
-// 	return &custom_metrics.MetricValue{}
-// }
-// func (i *InstrumentalProvider) GetRootScopedMetricBySelector(groupResource schema.GroupResource, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
-// 	return &custom_metrics.MetricValue{}
-// }
-// func (i *InstrumentalProvider) GetNamespacedMetricByName(groupResource schema.GroupResource, namespace string, name string, metricName string) (*custom_metrics.MetricValue, error) {
-// 	return &custom_metrics.MetricValue{}
-// }
-// func (i *InstrumentalProvider) GetNamespacedMetricBySelector(groupResource schema.GroupResource, namespace string, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
-// 	return &custom_metrics.MetricValue{}
-// }
-// func (i *InstrumentalProvider) ListAllMetrics() []CustomMetricInfo {
-// 	return &custom_metrics.MetricValue{}
-// }
+/*
+These are the interface functions for CustomMetricsProvider
+If we need to collect data on a per pods (or some other Kube object), then implement these.
 
+Note: If/when the CustomMetricsProvider is implemented, you will need to change the 
+NewStackdriverProvider to return provider.MetricsProvider instead of provider.ExternalMetricsProvider.
 
-// DELETE THIS - IT'S JUST FOR REFERENCE
-// ################################################################################
+provider.MetricsProvider is simply an interface that implements both the CustomMetricsProvider 
+and the ExternalMetricsProvider.
+*/
 
-// func (t *Translator) GetRespForExternalMetric(response *stackdriver.ListTimeSeriesResponse, metricName string) ([]external_metrics.ExternalMetricValue, error) {
-// 	metricValues := []external_metrics.ExternalMetricValue{}
-// 	for _, series := range response.TimeSeries {
-// 		if len(series.Points) <= 0 {
-// 			// This shouldn't happen with correct query to Stackdriver
-// 			return nil, apierr.NewInternalError(fmt.Errorf("Empty time series returned from Stackdriver"))
-// 		}
-// 		// Points in a time series are returned in reverse time order
-// 		point := series.Points[0]
-// 		endTime, err := time.Parse(time.RFC3339, point.Interval.EndTime)
-// 		if err != nil {
-// 			return nil, apierr.NewInternalError(fmt.Errorf("Timeseries from Stackdriver has incorrect end time: %s", point.Interval.EndTime))
-// 		}
-// 		metricValue := external_metrics.ExternalMetricValue{
-// 			Timestamp:    metav1.NewTime(endTime),
-// 			MetricName:   metricName,
-// 			MetricLabels: t.getMetricLabels(series),
-// 		}
-// 		value := *point.Value
-// 		switch {
-// 		case value.Int64Value != nil:
-// 			metricValue.Value = *resource.NewQuantity(*value.Int64Value, resource.DecimalSI)
-// 		case value.DoubleValue != nil:
-// 			metricValue.Value = *resource.NewMilliQuantity(int64(*value.DoubleValue*1000), resource.DecimalSI)
-// 		default:
-// 			return nil, apierr.NewBadRequest(fmt.Sprintf("Expected metric of type DoubleValue or Int64Value, but received TypedValue: %v", value))
-// 		}
-// 		metricValues = append(metricValues, metricValue)
-// 	}
-// 	return metricValues, nil
-// }
-
-// func (t *Translator) getMetricLabels(series *stackdriver.TimeSeries) map[string]string {
-// 	metricLabels := map[string]string{}
-// 	for label, value := range series.Metric.Labels {
-// 		metricLabels["metric.labels."+label] = value
-// 	}
-// 	metricLabels["resource.type"] = series.Resource.Type
-// 	for label, value := range series.Resource.Labels {
-// 		metricLabels["resource.labels."+label] = value
-// 	}
-// 	return metricLabels
-// }
-
-// type ExternalMetricValueList struct {
-// 	metav1.TypeMeta `json:",inline"`
-// 	metav1.ListMeta `json:"metadata,omitempty"`
-
-// 	// value of the metric matching a given set of labels
-// 	Items []ExternalMetricValue `json:"items"`
-// }
-
-// // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// // a metric value for external metric
-// // A single metric value is identified by metric name and a set of string labels.
-// // For one metric there can be multiple values with different sets of labels.
-// type ExternalMetricValue struct {
-// 	metav1.TypeMeta `json:",inline"`
-
-// 	// the name of the metric
-// 	MetricName string `json:"metricName"`
-
-// 	// a set of labels that identify a single time series for the metric
-// 	MetricLabels map[string]string `json:"metricLabels"`
-
-// 	// indicates the time at which the metrics were produced
-// 	Timestamp metav1.Time `json:"timestamp"`
-
-// 	// indicates the window ([Timestamp-Window, Timestamp]) from
-// 	// which these metrics were calculated, when returning rate
-// 	// metrics calculated from cumulative metrics (or zero for
-// 	// non-calculated instantaneous metrics).
-// 	WindowSeconds *int64 `json:"window,omitempty"`
-
-// 	// the value of the metric
-// 	Value resource.Quantity `json:"value"`
-// }
-
-// ################################################################################
-
-
-// func min(a, b int) int {
-// 	if a < b {
-// 		return a
-// 	}
-// 	return b
-// }
-// func getExternalMetricName(metricName string) string {
-// 	return strings.Replace(metricName, "|", "/", -1)
-// }
-
-// func getCustomMetricName(metricName string) string {
-// 	if strings.Contains(metricName, "|") {
-// 		return getExternalMetricName(metricName)
-// 	}
-// 	return "custom.googleapis.com/" + metricName
-// }
+/*
+func (i *InstrumentalProvider) GetRootScopedMetricByName(groupResource schema.GroupResource, name string, metricName string) (*custom_metrics.MetricValue, error) {
+	return &custom_metrics.MetricValue{}
+}
+func (i *InstrumentalProvider) GetRootScopedMetricBySelector(groupResource schema.GroupResource, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
+	return &custom_metrics.MetricValue{}
+}
+func (i *InstrumentalProvider) GetNamespacedMetricByName(groupResource schema.GroupResource, namespace string, name string, metricName string) (*custom_metrics.MetricValue, error) {
+	return &custom_metrics.MetricValue{}
+}
+func (i *InstrumentalProvider) GetNamespacedMetricBySelector(groupResource schema.GroupResource, namespace string, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
+	return &custom_metrics.MetricValue{}
+}
+func (i *InstrumentalProvider) ListAllMetrics() []CustomMetricInfo {
+	return &custom_metrics.MetricValue{}
+}
+*/
