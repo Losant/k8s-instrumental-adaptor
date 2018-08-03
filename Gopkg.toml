@@ -26,6 +26,26 @@
 
 
 [[constraint]]
+  branch = "default"
+  name = "bitbucket.org/ww/goautoneg"
+
+[[constraint]]
+  name = "github.com/PuerkitoBio/purell"
+  version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/coreos/etcd"
+  version = "3.2.13"
+
+[[constraint]]
+  name = "github.com/coreos/go-semver"
+  version = "0.2.0"
+
+[[constraint]]
+  name = "github.com/coreos/go-systemd"
+  version = "14.0.0"
+
+[[constraint]]
   name = "github.com/emicklei/go-restful"
   version = "2.2.1"
 
@@ -34,12 +54,48 @@
   version = "1.0.1"
 
 [[constraint]]
+  name = "github.com/golang/protobuf"
+  version = "1.1.0"
+
+[[constraint]]
+  name = "github.com/inconshreveable/mousetrap"
+  version = "1.0.0"
+
+[[constraint]]
   branch = "master"
   name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
 
 [[constraint]]
+  name = "github.com/modern-go/concurrent"
+  version = "1.0.3"
+
+[[constraint]]
+  name = "github.com/modern-go/reflect2"
+  version = "1.0.1"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/petar/GoLLRB"
+
+[[constraint]]
+  name = "github.com/peterbourgon/diskv"
+  version = "2.0.1"
+
+[[constraint]]
+  name = "github.com/spf13/pflag"
+  version = "1.0.1"
+
+[[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.1.4"
+
+[[constraint]]
+  name = "google.golang.org/grpc"
+  version = "1.7.5"
+
+[[constraint]]
+  name = "gopkg.in/inf.v0"
+  version = "0.9.0"
 
 [prune]
   go-tests = true
