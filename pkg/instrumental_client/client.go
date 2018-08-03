@@ -24,7 +24,7 @@ type Query struct {
 	Time       int
 }
 
-const DefaultBaseURL = "http://instrumentalapp.com/"
+const DefaultBaseURL = "https://instrumentalapp.com/"
 
 // NewClient creates a client with the Intrumental token. Optionally, pass in your own client.
 func NewClient(httpClient *http.Client, token string) *Client {

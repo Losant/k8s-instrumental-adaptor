@@ -1,4 +1,4 @@
-ARCH?=amd64
+ARCH?=386
 OUT_DIR?=build
 PACKAGE=github.com/losant/k8s-instrumental-adapter
 PREFIX?=gcr.io/structure-1104
@@ -10,7 +10,7 @@ PKG := $(shell find pkg/* -type f)
 build: build/adapter
 
 build/adapter: main.go $(PKG)
-	CGO_ENABLED=0 GOARCH=$(ARCH) go build -a -o $(OUT_DIR)/$(ARCH)/adapter main.go
+	CGO_ENABLED=0 GOARCH=$(ARCH) GOOS=linux go build -a -o $(OUT_DIR)/$(ARCH)/adapter main.go
 
 docker: build/adapter
 	docker build --pull -t ${PREFIX}/custom-metrics-instrumental-adapter:$(TAG) .

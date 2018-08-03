@@ -51,6 +51,7 @@ type instrumentalProvider struct {
 // }
 
 func NewInstrumentalProvider(token string) provider.MetricsProvider {
+	fmt.Println("Creating NewInstrumentalProvider")
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -80,18 +81,23 @@ func (ip *instrumentalProvider) ListAllMetrics() []provider.CustomMetricInfo {
 }
 
 func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {
+	fmt.Println("Calling GetExternalMetric func")
+	fmt.Printf("%v\n", metricName)
 	metrics := []external_metrics.ExternalMetricValue{}
 	metricLabels := map[string]string{}
 
 	q := instrumental.Query{
-		Path:       "api/2/metrics",
+		Path:       "api/2/metrics/",
 		Duration:   120,
 		Resolution: 60,
+		MetricName: metricName,
 	}
 	metric, err := ip.instrumentalClient.GetInstrumentalMetric(q)
 	if err != nil {
 		log.Fatalf("%v\n", err)
 	}
+
+	fmt.Printf("Results returned from Instrumental: %v\n", metric)
 
 	for i, v := range metric.Response.Metrics {
 		values := metric.Response.Metrics[i].Values
@@ -115,6 +121,8 @@ func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName s
 		metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
 		metrics = append(metrics, metricValue)
 	}
+
+	fmt.Println(metrics)
 
 	return &external_metrics.ExternalMetricValueList{
 		Items: metrics,

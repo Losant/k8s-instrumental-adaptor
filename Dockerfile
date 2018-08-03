@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# FROM gcr.io/google-containers/debian-base-amd64:0.1
+
+# ADD build/amd64/adapter adapter
+
+# RUN clean-install ca-certificates
+
+# RUN chmod +x adapter
+
 FROM gcr.io/google-containers/debian-base-amd64:0.1
-
-ADD build/amd64/adapter adapter
-
+ADD build/386/adapter adapter
 RUN clean-install ca-certificates
-
 RUN chmod +x adapter
+ENTRYPOINT ["/adapter", "--logtostderr=true"]
