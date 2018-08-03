@@ -21,7 +21,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/losant/k8s-instrumental-adaptor/pkg/sample-cmd/server"
+	"github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_adaptor/server"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/util/logs"
 )

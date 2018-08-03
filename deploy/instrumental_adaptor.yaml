@@ -77,8 +77,7 @@ spec:
         imagePullPolicy: Always
         name: pod-custom-metrics-instrumental-adapter
         command:
-        - /adapter   # ???
-        - --use-new-resource-model=false   # ???
+        - /adapter
         resources:
           limits:
             cpu: 250m

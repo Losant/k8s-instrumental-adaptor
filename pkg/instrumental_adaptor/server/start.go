@@ -19,27 +19,27 @@ package server
 import (
 	"fmt"
 	"io"
+	"log"
+	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
-	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"time"
-
-	// "github.com/losant/k8s-instrumental-adapter/pkg/instrumental-adapter/provider"
-	"github.com/losant/k8s-instrumental-adaptor/pkg/cmd/server"
-	"github.com/losant/k8s-instrumental-adaptor/pkg/dynamicmapper"
+	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/cmd/server"
+	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/dynamicmapper"
+	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/sample-cmd/provider"
 )
 
-// NewCommandStartSampleAdapterServer provides a CLI handler for 'start master' command
+// NewCommandStartMaster provides a CLI handler for 'start master' command
 func NewCommandStartSampleAdapterServer(out, errOut io.Writer, stopCh <-chan struct{}) *cobra.Command {
 	baseOpts := server.NewCustomMetricsAdapterServerOptions(out, errOut)
-	o := sampleAdapterServerOptions{
+	o := SampleAdapterServerOptions{
 		CustomMetricsAdapterServerOptions: baseOpts,
 		DiscoveryInterval:                 10 * time.Minute,
-		UseNewResourceModel:               false,
 		EnableCustomMetricsAPI:            true,
 		EnableExternalMetricsAPI:          true,
 	}
@@ -54,8 +54,10 @@ func NewCommandStartSampleAdapterServer(out, errOut io.Writer, stopCh <-chan str
 			if err := o.Validate(args); err != nil {
 				return err
 			}
-			err := o.RunCustomMetricsAdapterServer(stopCh)
-			return err
+			if err := o.RunCustomMetricsAdapterServer(stopCh); err != nil {
+				return err
+			}
+			return nil
 		},
 	}
 
@@ -67,11 +69,9 @@ func NewCommandStartSampleAdapterServer(out, errOut io.Writer, stopCh <-chan str
 
 	flags.StringVar(&o.RemoteKubeConfigFile, "lister-kubeconfig", o.RemoteKubeConfigFile, ""+
 		"kubeconfig file pointing at the 'core' kubernetes server with enough rights to list "+
-		"any described objets")
+		"any described objects")
 	flags.DurationVar(&o.DiscoveryInterval, "discovery-interval", o.DiscoveryInterval, ""+
 		"interval at which to refresh API discovery information")
-	flags.BoolVar(&o.UseNewResourceModel, "use-new-resource-model", o.UseNewResourceModel, ""+
-		"whether to use new Stackdriver resource model")
 	flags.BoolVar(&o.EnableCustomMetricsAPI, "enable-custom-metrics-api", o.EnableCustomMetricsAPI, ""+
 		"whether to enable Custom Metrics API")
 	flags.BoolVar(&o.EnableExternalMetricsAPI, "enable-external-metrics-api", o.EnableExternalMetricsAPI, ""+
@@ -80,8 +80,7 @@ func NewCommandStartSampleAdapterServer(out, errOut io.Writer, stopCh <-chan str
 	return cmd
 }
 
-// RunCustomMetricsAdapterServer runs Custom Metrics Adapter API server.
-func (o sampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan struct{}) error {
+func (o SampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan struct{}) error {
 	config, err := o.Config()
 	if err != nil {
 		return err
@@ -100,33 +99,31 @@ func (o sampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan 
 		return fmt.Errorf("unable to construct lister client config to initialize provider: %v", err)
 	}
 
-	client, err := coreclient.NewForConfig(clientConfig)
-	if err != nil {
-		return fmt.Errorf("unable to construct lister client to initialize provider: %v", err)
-	}
-
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(clientConfig)
 	if err != nil {
 		return fmt.Errorf("unable to construct discovery client for dynamic client: %v", err)
 	}
-	dynamicMapper, err := dynamicmapper.NewRESTMapper(discoveryClient, time.Minute)
+
+	// NB: since we never actually look at the contents of
+	// the objects we fetch (beyond ObjectMeta), unstructured should be fine
+	dynamicMapper, err := dynamicmapper.NewRESTMapper(discoveryClient, o.DiscoveryInterval)
 	if err != nil {
-		return fmt.Errorf("unable to construct dynamic mapper: %v", err)
+		return fmt.Errorf("unable to construct dynamic discovery mapper: %v", err)
 	}
 
-	// tokenSource, err := google.DefaultTokenSource(oauth2.NoContext, "")
-	// if err != nil {
-	// 	return fmt.Errorf("unable to use default token source: %v", err)
-	// }
-	// oauthClient := oauth2.NewClient(oauth2.NoContext, tokenSource)
-	// stackdriverService, err := stackdriver.New(oauthClient)
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to create Instrumental client: %v", err)
-	// }
-	// provider := provider.NewStackdriverProvider(coreclient.New(client.RESTClient()), dynamicMapper, stackdriverService, 5*time.Minute, time.Minute, o.UseNewResourceModel)
+	dynClient, err := dynamic.NewForConfig(clientConfig)
+	if err != nil {
+		return fmt.Errorf("unable to construct lister client to initialize provider: %v", err)
+	}
 
-	provider := provider.NewInstrumentalProvider(coreclient.New(client.RESTClient()), dynamicMapper, 5*time.Minute, time.Minute, o.UseNewResourceModel)
-	customMetricsProvider, externalMetricsProvider := provider, provider
+	token := os.Getenv("INSTRUMENTAL_TOKEN")
+	if token == "" {
+		log.Fatal("The provider will not work with an INSTRUMENTAL_TOKEN.")
+	}
+
+	metricsProvider := provider.NewInstrumentalProvider(token)
+	customMetricsProvider := metricsProvider
+	externalMetricsProvider := metricsProvider
 	if !o.EnableCustomMetricsAPI {
 		customMetricsProvider = nil
 	}
@@ -134,23 +131,21 @@ func (o sampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan 
 		externalMetricsProvider = nil
 	}
 
-	server, err := config.Complete().New("k8s-instrumental-adapter", customMetricsProvider, externalMetricsProvider)
+	// In this example, the same provider implements both Custom Metrics API and External Metrics API
+	server, err := config.Complete().New("sample-custom-metrics-adapter", customMetricsProvider, externalMetricsProvider)
 	if err != nil {
 		return err
 	}
 	return server.GenericAPIServer.PrepareRun().Run(stopCh)
 }
 
-type sampleAdapterServerOptions struct {
+type SampleAdapterServerOptions struct {
 	*server.CustomMetricsAdapterServerOptions
 
 	// RemoteKubeConfigFile is the config used to list pods from the master API server
 	RemoteKubeConfigFile string
 	// DiscoveryInterval is the interval at which discovery information is refreshed
 	DiscoveryInterval time.Duration
-	// UseNewResourceModel is a flag that indicates whether new Stackdriver resource model should be
-	// used
-	UseNewResourceModel bool
 	// EnableCustomMetricsAPI switches on sample apiserver for Custom Metrics API
 	EnableCustomMetricsAPI bool
 	// EnableExternalMetricsAPI switches on sample apiserver for External Metrics API
