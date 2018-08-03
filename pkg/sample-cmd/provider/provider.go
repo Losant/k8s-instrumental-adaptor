@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -46,7 +47,7 @@ func NewFakeProvider() provider.ExternalMetricsProvider {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
-	instrumentalClient := instrumental.NewClient(client, "ajsdklf")
+	instrumentalClient := instrumental.NewClient(client, os.Getenv("INSTRUMENTAL_TOKEN"))
 	return &instrumentalProvider{
 		instrumentalClient: instrumentalClient,
 		externalMetrics:    []externalMetric{},
