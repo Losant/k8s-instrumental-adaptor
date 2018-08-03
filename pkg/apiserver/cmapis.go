@@ -25,9 +25,9 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/discovery"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
-	specificapi "github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/apiserver/installer"
-	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/provider"
-	metricstorage "github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/registry/custom_metrics"
+	specificapi "github.com/losant/k8s-instrumental-adaptor/pkg/apiserver/installer"
+	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
+	metricstorage "github.com/losant/k8s-instrumental-adaptor/pkg/registry/custom_metrics"
 	"k8s.io/metrics/pkg/apis/custom_metrics"
 )
 
@@ -61,6 +61,7 @@ func (s *CustomMetricsAdapterServer) InstallCustomMetricsAPI() error {
 }
 
 func (s *CustomMetricsAdapterServer) cmAPI(groupInfo *genericapiserver.APIGroupInfo, groupVersion schema.GroupVersion) *specificapi.MetricsAPIGroupVersion {
+	// resourceStorage := metricstorage.NewREST(s.customMetricsProvider)
 	resourceStorage := metricstorage.NewREST(s.customMetricsProvider)
 
 	return &specificapi.MetricsAPIGroupVersion{

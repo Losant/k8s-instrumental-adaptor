@@ -61,9 +61,9 @@
   name = "github.com/inconshreveable/mousetrap"
   version = "1.0.0"
 
-[[constraint]]
-  branch = "master"
-  name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
+#[[constraint]]
+#  branch = "master"
+#  name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
 
 [[constraint]]
   name = "github.com/modern-go/concurrent"
@@ -100,3 +100,6 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "k8s.io/metrics"

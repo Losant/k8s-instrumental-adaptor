@@ -17,21 +17,14 @@ limitations under the License.
 package server
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/cmd/server"
-	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/dynamicmapper"
+	"github.com/losant/k8s-instrumental-adaptor/pkg/cmd/server"
 	"github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_adaptor/provider"
+	"github.com/spf13/cobra"
 )
 
 // NewCommandStartMaster provides a CLI handler for 'start master' command
@@ -84,36 +77,6 @@ func (o SampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan 
 	config, err := o.Config()
 	if err != nil {
 		return err
-	}
-
-	var clientConfig *rest.Config
-	if len(o.RemoteKubeConfigFile) > 0 {
-		loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: o.RemoteKubeConfigFile}
-		loader := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{})
-
-		clientConfig, err = loader.ClientConfig()
-	} else {
-		clientConfig, err = rest.InClusterConfig()
-	}
-	if err != nil {
-		return fmt.Errorf("unable to construct lister client config to initialize provider: %v", err)
-	}
-
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(clientConfig)
-	if err != nil {
-		return fmt.Errorf("unable to construct discovery client for dynamic client: %v", err)
-	}
-
-	// NB: since we never actually look at the contents of
-	// the objects we fetch (beyond ObjectMeta), unstructured should be fine
-	dynamicMapper, err := dynamicmapper.NewRESTMapper(discoveryClient, o.DiscoveryInterval)
-	if err != nil {
-		return fmt.Errorf("unable to construct dynamic discovery mapper: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(clientConfig)
-	if err != nil {
-		return fmt.Errorf("unable to construct lister client to initialize provider: %v", err)
 	}
 
 	token := os.Getenv("INSTRUMENTAL_TOKEN")

@@ -17,6 +17,7 @@ limitations under the License.
 package apiserver
 
 import (
+	metricstorage "github.com/losant/k8s-instrumental-adaptor/pkg/registry/external_metrics"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,9 +26,8 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/discovery"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 
-	specificapi "github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/apiserver/installer"
-	"github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/provider"
-	metricstorage "github.com/kubernetes-incubator/custom-metrics-apiserver/pkg/registry/external_metrics"
+	specificapi "github.com/losant/k8s-instrumental-adaptor/pkg/apiserver/installer"
+	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
 	"k8s.io/metrics/pkg/apis/external_metrics"
 )
 

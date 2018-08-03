@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/metrics/pkg/apis/custom_metrics"
 	"k8s.io/metrics/pkg/apis/external_metrics"
 )
 
@@ -42,7 +44,13 @@ type instrumentalProvider struct {
 	externalMetrics    []externalMetric
 }
 
-func NewInstrumentalProvider(token string) provider.ExternalMetricsProvider {
+// type fakeInstrumentalCustomProvider struct{}
+
+// func NewFakeInstrumentalCustomProvider() provider.CustomMetricsProvider {
+// 	return &fakeInstrumentalCustomProvider{}
+// }
+
+func NewInstrumentalProvider(token string) provider.MetricsProvider {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -51,6 +59,24 @@ func NewInstrumentalProvider(token string) provider.ExternalMetricsProvider {
 		instrumentalClient: instrumentalClient,
 		externalMetrics:    []externalMetric{},
 	}
+}
+
+func (ip *instrumentalProvider) GetRootScopedMetricByName(groupResource schema.GroupResource, name string, metricName string) (*custom_metrics.MetricValue, error) {
+	return &custom_metrics.MetricValue{}, nil
+}
+func (ip *instrumentalProvider) GetRootScopedMetricBySelector(groupResource schema.GroupResource, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
+	return &custom_metrics.MetricValueList{}, nil
+}
+func (ip *instrumentalProvider) GetNamespacedMetricByName(groupResource schema.GroupResource, namespace string, name string, metricName string) (*custom_metrics.MetricValue, error) {
+	return &custom_metrics.MetricValue{}, nil
+}
+func (ip *instrumentalProvider) GetNamespacedMetricBySelector(groupResource schema.GroupResource, namespace string, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
+	return &custom_metrics.MetricValueList{}, nil
+}
+
+func (ip *instrumentalProvider) ListAllMetrics() []provider.CustomMetricInfo {
+	fcmi := []provider.CustomMetricInfo{}
+	return fcmi
 }
 
 func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {
