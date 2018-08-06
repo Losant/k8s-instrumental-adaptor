@@ -17,15 +17,16 @@ limitations under the License.
 package provider
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
+	"regexp"
+	"strings"
 	"time"
 
 	instrumental "github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_client"
 	"github.com/losant/k8s-instrumental-adaptor/pkg/provider"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -44,12 +45,6 @@ type instrumentalProvider struct {
 	externalMetrics    []externalMetric
 }
 
-// type fakeInstrumentalCustomProvider struct{}
-
-// func NewFakeInstrumentalCustomProvider() provider.CustomMetricsProvider {
-// 	return &fakeInstrumentalCustomProvider{}
-// }
-
 func NewInstrumentalProvider(token string) provider.MetricsProvider {
 	fmt.Println("Creating NewInstrumentalProvider")
 	client := &http.Client{
@@ -62,6 +57,7 @@ func NewInstrumentalProvider(token string) provider.MetricsProvider {
 	}
 }
 
+// These functions are part of the CustomMetrics interface. If you need to interact with the k8s objects directly, implement these functions.
 func (ip *instrumentalProvider) GetRootScopedMetricByName(groupResource schema.GroupResource, name string, metricName string) (*custom_metrics.MetricValue, error) {
 	return &custom_metrics.MetricValue{}, nil
 }
@@ -80,49 +76,28 @@ func (ip *instrumentalProvider) ListAllMetrics() []provider.CustomMetricInfo {
 	return fcmi
 }
 
+// The GetExternalMetric and ListAllExternalMetrics function implement the ExternalMetrics interface.
 func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName string, metricSelector labels.Selector) (*external_metrics.ExternalMetricValueList, error) {
-	fmt.Println("Calling GetExternalMetric func")
-	fmt.Printf("%v\n", metricName)
-	metrics := []external_metrics.ExternalMetricValue{}
-	metricLabels := map[string]string{}
 
+	// Convert metricName to Camelcase (apimachinery is calling ToLower on the metricName)
+	camelMetricName := getCustomMetricName(metricName)
 	q := instrumental.Query{
 		Path:       "api/2/metrics/",
 		Duration:   120,
 		Resolution: 60,
-		MetricName: metricName,
+		MetricName: camelMetricName,
 	}
 	metric, err := ip.instrumentalClient.GetInstrumentalMetric(q)
 	if err != nil {
-		log.Fatalf("%v\n", err)
+		return nil, errors.New("The call to Instrumental returned an error")
 	}
+	log.Printf("Results returned from Instrumental: %v\n", metric)
 
-	fmt.Printf("Results returned from Instrumental: %v\n", metric)
-
-	for i, v := range metric.Response.Metrics {
-		values := metric.Response.Metrics[i].Values
-
-		l := len(values.Data)
-		point := values.Data[l-1]
-		endTime, err := time.Parse(time.RFC3339, strconv.Itoa(values.Stop))
-		if err != nil {
-			return nil, apierr.NewInternalError(fmt.Errorf("Timeseries from Instrumental has incorrect end time: %v", values.Stop))
-		}
-
-		value := point.Average
-		metricValue := external_metrics.ExternalMetricValue{
-			Timestamp:  metav1.NewTime(endTime),
-			MetricName: metricName,
-			MetricLabels: map[string]string{
-				metricLabels["resource.type"]: v.Type,
-				metricLabels["resource.name"]: v.Name,
-			},
-		}
-		metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
-		metrics = append(metrics, metricValue)
+	metrics, err := ip.GetRespForExternalMetric(metric, camelMetricName)
+	if err != nil {
+		return nil, err
 	}
-
-	fmt.Println(metrics)
+	log.Printf("##############################################\n\n")
 
 	return &external_metrics.ExternalMetricValueList{
 		Items: metrics,
@@ -137,31 +112,55 @@ func (ip *instrumentalProvider) ListAllExternalMetrics() []provider.ExternalMetr
 	return externalMetricsInfo
 }
 
-/*
-These are the interface functions for CustomMetricsProvider
-If we need to collect data on a per pods (or some other Kube object), then implement these.
+// GetRespForExternalMetric takes the response from the Instrumental client and returns a slice of ExternalMetricValue or an error.
+func (ip *instrumentalProvider) GetRespForExternalMetric(response *instrumental.InstrumentalMetric, metricName string) ([]external_metrics.ExternalMetricValue, error) {
+	metrics := []external_metrics.ExternalMetricValue{}
+	metricLabels := map[string]string{}
 
-Note: If/when the CustomMetricsProvider is implemented, you will need to change the
-NewStackdriverProvider to return provider.MetricsProvider instead of provider.ExternalMetricsProvider.
+	for i, v := range response.Response.Metrics {
+		values := response.Response.Metrics[i].Values
 
-provider.MetricsProvider is simply an interface that implements both the CustomMetricsProvider
-and the ExternalMetricsProvider.
-*/
+		l := len(values.Data)
+		point := values.Data[l-2]
 
-/*
-func (i *InstrumentalProvider) GetRootScopedMetricByName(groupResource schema.GroupResource, name string, metricName string) (*custom_metrics.MetricValue, error) {
-	return &custom_metrics.MetricValue{}
+		endTime := time.Unix(int64(values.Stop), 0)
+
+		value := point.Average
+		log.Printf("\n\tValue (Average): %f\n\n", value)
+		if value <= 0 {
+			// This shouldn't happen with correct query to Stackdriver
+			return nil, errors.New("Empty time series returned from Instrumental")
+		}
+		metricValue := external_metrics.ExternalMetricValue{
+			Timestamp:  metav1.NewTime(endTime),
+			MetricName: metricName,
+			MetricLabels: map[string]string{
+				metricLabels["resource.type"]: v.Type,
+				metricLabels["resource.name"]: v.Name,
+			},
+		}
+		metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
+		metrics = append(metrics, metricValue)
+	}
+
+	return metrics, nil
 }
-func (i *InstrumentalProvider) GetRootScopedMetricBySelector(groupResource schema.GroupResource, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
-	return &custom_metrics.MetricValue{}
+
+func getExternalMetricName(metricName string) string {
+	re := regexp.MustCompile(`\|[a-z]?`)
+	var out string
+	ak := re.FindAllStringSubmatch(metricName, -1)
+	for _, v := range ak {
+		n := strings.Replace(v[0], "|", "", -1)
+		metricName = strings.Replace(metricName, n, strings.ToUpper(n), -1)
+		out = strings.Replace(metricName, "|", "", -1)
+	}
+	return out
 }
-func (i *InstrumentalProvider) GetNamespacedMetricByName(groupResource schema.GroupResource, namespace string, name string, metricName string) (*custom_metrics.MetricValue, error) {
-	return &custom_metrics.MetricValue{}
+
+func getCustomMetricName(metricName string) string {
+	if strings.Contains(metricName, "|") {
+		return getExternalMetricName(metricName)
+	}
+	return metricName
 }
-func (i *InstrumentalProvider) GetNamespacedMetricBySelector(groupResource schema.GroupResource, namespace string, selector labels.Selector, metricName string) (*custom_metrics.MetricValueList, error) {
-	return &custom_metrics.MetricValue{}
-}
-func (i *InstrumentalProvider) ListAllMetrics() []CustomMetricInfo {
-	return &custom_metrics.MetricValue{}
-}
-*/
