@@ -91,13 +91,12 @@ func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName s
 	if err != nil {
 		return nil, errors.New("The call to Instrumental returned an error")
 	}
-	log.Printf("Results returned from Instrumental: %v\n", metric)
+	log.Printf("Results returned from Instrumental: %v\n\n", metric)
 
 	metrics, err := ip.GetRespForExternalMetric(metric, camelMetricName)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("##############################################\n\n")
 
 	return &external_metrics.ExternalMetricValueList{
 		Items: metrics,
