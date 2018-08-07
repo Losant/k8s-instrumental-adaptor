@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -40,20 +39,26 @@ type externalMetric struct {
 	value external_metrics.ExternalMetricValue
 }
 
-type instrumentalProvider struct {
+type Translator struct {
 	instrumentalClient *instrumental.Client
-	externalMetrics    []externalMetric
 }
 
-func NewInstrumentalProvider(token string) provider.MetricsProvider {
+type instrumentalProvider struct {
+	// instrumentalClient *instrumental.Client
+	externalMetrics []externalMetric
+	translator      *Translator
+}
+
+func NewInstrumentalProvider(token string, instrumentalClient *instrumental.Client) provider.MetricsProvider {
 	fmt.Println("Creating NewInstrumentalProvider")
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	instrumentalClient := instrumental.NewClient(client, token)
-	return &instrumentalProvider{
+	translator := &Translator{
 		instrumentalClient: instrumentalClient,
-		externalMetrics:    []externalMetric{},
+	}
+
+	return &instrumentalProvider{
+		// instrumentalClient: instrumentalClient,
+		externalMetrics: []externalMetric{},
+		translator:      translator,
 	}
 }
 
@@ -87,7 +92,7 @@ func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName s
 		Resolution: 60,
 		MetricName: camelMetricName,
 	}
-	metric, err := ip.instrumentalClient.GetInstrumentalMetric(q)
+	metric, err := ip.translator.instrumentalClient.GetInstrumentalMetric(q)
 	if err != nil {
 		return nil, errors.New("The call to Instrumental returned an error")
 	}
