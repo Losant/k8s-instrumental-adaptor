@@ -19,11 +19,13 @@ package server
 import (
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/losant/k8s-instrumental-adaptor/pkg/cmd/server"
 	"github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_adaptor/provider"
+	instrumental "github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_client"
 	"github.com/spf13/cobra"
 )
 
@@ -84,7 +86,12 @@ func (o SampleAdapterServerOptions) RunCustomMetricsAdapterServer(stopCh <-chan 
 		log.Fatal("The provider will not work with an INSTRUMENTAL_TOKEN.")
 	}
 
-	metricsProvider := provider.NewInstrumentalProvider(token)
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	instrumentalClient := instrumental.NewClient(client, token)
+	metricsProvider := provider.NewInstrumentalProvider(token, instrumentalClient)
 	customMetricsProvider := metricsProvider
 	externalMetricsProvider := metricsProvider
 	if !o.EnableCustomMetricsAPI {
