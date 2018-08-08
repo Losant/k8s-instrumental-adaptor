@@ -49,7 +49,6 @@ subjects:
   name: custom-metrics-instrumental-adapter
   namespace: custom-metrics
 ---
-# Will need to add INSTRUMENTAL_TOKEN env var somewhere. Should be a secret.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:

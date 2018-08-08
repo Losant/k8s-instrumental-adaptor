@@ -41,6 +41,8 @@ func NewClient(httpClient *http.Client, token string) *Client {
 	return c
 }
 
+// GetInstrumentalMetric takes a Query object, makes the API cal to Instrumental, and
+// returns an *InstrumentalMetric.
 func (c *Client) GetInstrumentalMetric(query Query) (*InstrumentalMetric, error) {
 	var im InstrumentalMetric
 	req, err := c.NewQueryRequest(query)
