@@ -98,7 +98,7 @@ func (ip *instrumentalProvider) GetExternalMetric(namespace string, metricName s
 	}
 	log.Printf("Results returned from Instrumental: %v\n\n", metric)
 
-	metrics, err := ip.GetRespForExternalMetric(metric, camelMetricName)
+	metrics, err := ip.translator.GetRespForExternalMetric(metric, camelMetricName)
 	if err != nil {
 		return nil, err
 	}
@@ -117,16 +117,15 @@ func (ip *instrumentalProvider) ListAllExternalMetrics() []provider.ExternalMetr
 }
 
 // GetRespForExternalMetric takes the response from the Instrumental client and returns a slice of ExternalMetricValue or an error.
-func (ip *instrumentalProvider) GetRespForExternalMetric(response *instrumental.InstrumentalMetric, metricName string) ([]external_metrics.ExternalMetricValue, error) {
+func (t *Translator) GetRespForExternalMetric(response *instrumental.InstrumentalMetric, metricName string) ([]external_metrics.ExternalMetricValue, error) {
 	metrics := []external_metrics.ExternalMetricValue{}
-	metricLabels := map[string]string{}
 
 	for i, v := range response.Response.Metrics {
 		values := response.Response.Metrics[i].Values
-
 		l := len(values.Data)
+		// Because Instrumental forces Duration to be at least twice the Resolution,
+		// (i.e. there with be at least two points) This should be reflected in the tests.
 		point := values.Data[l-2]
-
 		endTime := time.Unix(int64(values.Stop), 0)
 
 		value := point.Average
@@ -139,10 +138,11 @@ func (ip *instrumentalProvider) GetRespForExternalMetric(response *instrumental.
 			Timestamp:  metav1.NewTime(endTime),
 			MetricName: metricName,
 			MetricLabels: map[string]string{
-				metricLabels["resource.type"]: v.Type,
-				metricLabels["resource.name"]: v.Name,
+				"resource.type": v.Type,
+				"resource.name": v.Name,
 			},
 		}
+
 		metricValue.Value = *resource.NewMilliQuantity(int64(value*1000), resource.DecimalSI)
 		metrics = append(metrics, metricValue)
 	}
