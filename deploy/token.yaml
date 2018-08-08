@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: instrumental-adapter-secret
+  namespace: custom-metrics
+type: Opaque
+data:
+  instrumental.token: <ADD_YOUR_INSTRUMENTAL_TOKEN_HERE>

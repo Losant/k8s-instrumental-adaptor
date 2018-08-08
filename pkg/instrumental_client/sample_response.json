@@ -4,10 +4,10 @@
 	"response": {
 	  "metrics": [
 		{
-		  "id": "flowDriver.workflowQueue.processed",
+		  "id": "metric.fake.processed",
 		  "project_id": 904,
-		  "expression": "flowDriver.workflowQueue.processed",
-		  "name": "flowDriver.workflowQueue.processed",
+		  "expression": "metric.fake.processed",
+		  "name": "metric.fake.processed",
 		  "type": "gauge",
 		  "created_at": 0,
 		  "updated_at": 0,

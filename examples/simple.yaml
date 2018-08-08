@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: workers
+        image: 'username/myapp:latest' # Change this to point to your docker image
+        imagePullPolicy: Always
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: myapp
+spec:
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+  - external:
+      # k8s lowercases the metricName automatically.
+      # The '|' will convert the next letter to a
+      # capital letter.
+      # Example: test|project.test|metric.latency
+      # will become testProject.testMetric.latency
+      metricName: "test|project.test|metric.latency" # Change this to the metric you want to monitor
+      metricSelector:
+        matchLabels:
+          resource.type: queue
+          resource.name: testProject.testMetric.latency
+      targetValue: "5000" # 5 seconds
+    type: External
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapp
