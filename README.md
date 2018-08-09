@@ -21,6 +21,8 @@ To deploy, first create a secret for your `INSTRUMENTAL_TOKEN`. Add your unique 
 kubectl apply -f deploy/token.yaml
 ```
 
+Remember to base64 encode your `INSTRUMENTAL_TOKEN` in the deploy/token.yaml file.
+
 **NOTE: Be sure to keep your secrets secure. We recommend not committing any secrets to you repo.**
 
 Then, create the deployment by running:

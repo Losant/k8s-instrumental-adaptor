@@ -48,8 +48,6 @@ func TestGetRespForExternalMetric(t *testing.T) {
 		},
 	}
 
-	fmt.Println("EXP MET: ", expectedMetrics)
-
 	if len(metrics) != len(expectedMetrics) {
 		t.Errorf("Unexpected result. Expected %d metrics, received %d", len(expectedMetrics), len(metrics))
 	}

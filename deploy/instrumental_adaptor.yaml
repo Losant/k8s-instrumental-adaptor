@@ -72,7 +72,7 @@ spec:
     spec:
       serviceAccountName: custom-metrics-instrumental-adapter
       containers:
-      - image: gcr.io/$LOSANT/custom-metrics-instrumental-adapter:v0.0.1 # Change/fix this to ours
+      - image: losant/custom-metrics-instrumental-adapter:v0.1.0 # Change/fix this to ours
         imagePullPolicy: Always
         name: pod-custom-metrics-instrumental-adapter
         command:
