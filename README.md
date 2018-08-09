@@ -64,3 +64,8 @@ Then follow the logs for this container:
 ```bash
 kubectl logs custom-metrics-instrumental-adapter-478374838-39ff1 -f
 ```
+
+### Dockerhub
+
+Here is a link to our public Dockerhub page:
+[custom-metrics-instrumental-adaptor](https://hub.docker.com/r/losant/custom-metrics-instrumental-adapter/)
