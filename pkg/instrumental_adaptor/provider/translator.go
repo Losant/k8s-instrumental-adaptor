@@ -53,14 +53,12 @@ func (t *Translator) GetRespForExternalMetric(response *instrumental.Instrumenta
 
 func getExternalMetricName(metricName string) string {
 	re := regexp.MustCompile(`\|[a-z]?`)
-	var out string
 	ak := re.FindAllStringSubmatch(metricName, -1)
 	for _, v := range ak {
-		n := strings.Replace(v[0], "|", "", -1)
-		metricName = strings.Replace(metricName, n, strings.ToUpper(n), -1)
-		out = strings.Replace(metricName, "|", "", -1)
+		// replace a |[a-z] with just the capitalized letter
+		metricName = strings.Replace(metricName, v[0], strings.ToUpper(v[0][1:2]), 1)
 	}
-	return out
+	return metricName;
 }
 
 func getCustomMetricName(metricName string) string {
