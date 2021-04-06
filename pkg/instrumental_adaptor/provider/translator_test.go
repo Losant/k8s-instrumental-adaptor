@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+
 	instrumental "github.com/losant/k8s-instrumental-adaptor/pkg/instrumental_client"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +15,18 @@ import (
 )
 
 var endTime int = 1533674340
+
+func TestGetCustomMetricName(t *testing.T) {
+	// Create fake instrumentalProvider
+	translator := newFakeTranslator()
+	fmt.Println(translator)
+	originalName = "metric.fake.latency"
+	name = getCustomMetricName(originalName)
+	assert.Equal(t, name, originalName, "Custom metric name should have not changed.")
+
+	metricName = getCustomMetricName("ts_average(flow|driver.sand*.latency)")
+	assert.Equal(t, metricName, "ts_average(flowDriver.sand*.latency)", "Custom metric name should have translated characters to uppercase properly.")
+}
 
 func TestGetRespForExternalMetric(t *testing.T) {
 	// Create fake instrumentalProvider
