@@ -61,7 +61,7 @@ require (
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.20.5
 	k8s.io/apimachinery v0.20.5
-	k8s.io/apiserver v0.0.0-20180111074221-ad83dacaae87
+	k8s.io/apiserver v0.20.5
 	k8s.io/client-go v0.20.5
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/metrics v0.0.0-20180624205227-baa04983db4e

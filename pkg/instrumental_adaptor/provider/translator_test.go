@@ -20,11 +20,11 @@ func TestGetCustomMetricName(t *testing.T) {
 	// Create fake instrumentalProvider
 	translator := newFakeTranslator()
 	fmt.Println(translator)
-	originalName = "metric.fake.latency"
-	name = getCustomMetricName(originalName)
+	originalName := "metric.fake.latency"
+	name := getCustomMetricName(originalName)
 	assert.Equal(t, name, originalName, "Custom metric name should have not changed.")
 
-	metricName = getCustomMetricName("ts_average(flow|driver.sand*.latency)")
+	metricName := getCustomMetricName("ts_average(flow|driver.sand*.latency)")
 	assert.Equal(t, metricName, "ts_average(flowDriver.sand*.latency)", "Custom metric name should have translated characters to uppercase properly.")
 }
 
