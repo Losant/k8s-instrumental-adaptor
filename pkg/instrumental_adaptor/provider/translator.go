@@ -53,14 +53,9 @@ func (t *Translator) GetRespForExternalMetric(response *instrumental.Instrumenta
 
 func getExternalMetricName(metricName string) string {
 	re := regexp.MustCompile(`\|[a-z]?`)
-	var out string
-	ak := re.FindAllStringSubmatch(metricName, -1)
-	for _, v := range ak {
-		n := strings.Replace(v[0], "|", "", -1)
-		metricName = strings.Replace(metricName, n, strings.ToUpper(n), -1)
-		out = strings.Replace(metricName, "|", "", -1)
-	}
-	return out
+	out := re.ReplaceAllStringFunc(metricName, strings.ToUpper)
+	out = strings.ReplaceAll(out, "|", "")
+	return out;
 }
 
 func getCustomMetricName(metricName string) string {
